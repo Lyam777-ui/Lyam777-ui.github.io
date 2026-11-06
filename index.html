@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Bullet Hell - L1</title>
+    <style>
+        body {
+            background-color: #121212;
+            color: white;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+        canvas {
+            background-color: #1a1a24;
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Le compteur de temps -->
+    <div id="ui">Temps : <span id="timer">0</span> secondes</div>
+
+    <!-- La zone de jeu en plein écran -->
+    <canvas id="jeu"></canvas>
+
+    <script>
+        const canvas = document.getElementById("jeu");
+        const ctx = canvas.getContext("2d");
+        const timerTxt = document.getElementById("timer");
+
+        // Adapter le jeu à la taille de l'écran
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // 1. Le Joueur (bille bleue) avec une vitesse précise
+        let joueur = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            taille: 12,
+            vitesse: 2.8
+        };
+
+        let boulesRouges = [];
+        let touches = {};
+        let secondes = 0;
+        let jeuActif = true;
+
+        // 2. Gestion du clavier (touches WASD ou ZQSD)
+        window.addEventListener('keydown', (e) => touches[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', (e) => touches[e.key.toLowerCase()] = false);
+
+        // 3. Fonction pour faire arriver les boules rouges de TOUS les côtés
+        function creerBouleRouge() {
+            let x, y, vx, vy;
+            let cote = Math.floor(Math.random() * 4); // 0: Haut, 1: Bas, 2: Gauche, 3: Droite
+            let vitesseBase = 2 + (secondes * 0.05); // Plus le temps passe, plus elles vont vite !
+
+            if (cote === 0) { // Vient du haut
+                x = Math.random() * canvas.width; y = -15;
+                vx = (Math.random() - 0.5) * 2; vy = vitesseBase;
+            } else if (cote === 1) { // Vient du bas
+                x = Math.random() * canvas.width; y = canvas.height + 15;
+                vx = (Math.random() - 0.5) * 2; vy = -vitesseBase;
+            } else if (cote === 2) { // Vient de la gauche
+                x = -15; y = Math.random() * canvas.height;
+                vx = vitesseBase; vy = (Math.random() - 0.5) * 2;
+            } else { // Vient de la droite
+                x = canvas.width + 15; y = Math.random() * canvas.height;
+                vx = -vitesseBase; vy = (Math.random() - 0.5) * 2;
+            }
+
+            boulesRouges.push({ x: x, y: y, vx: vx, vy: vy, taille: 8 });
+        }
+
+        // Compteur de secondes et apparition régulière de nouveaux ennemis
+        let horloge = setInterval(() => {
+            if (jeuActif) {
+                secondes++;
+                timerTxt.textContent = secondes;				
+            }
+        }, 1000);
+
+		let horlogeBoules = setInterval(() => {
+			if (jeuActif) {
+				creerBouleRouge();
+				creerBouleRouge();				
+			}
+		}, 400);
+
+        // 4. Boucle principale du jeu (animée à 60 images par seconde)
+        function bouclerJeu() {
+            if (!jeuActif) return;
+
+            // Effacer l'écran
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Mouvement du joueur (WASD / ZQSD)
+            if ((touches['w'] || touches['z']) && joueur.y > 0) joueur.y -= joueur.vitesse;
+            if (touches['s'] && joueur.y < canvas.height) joueur.y += joueur.vitesse;
+            if ((touches['a'] || touches['q']) && joueur.x > 0) joueur.x -= joueur.vitesse;
+            if (touches['d'] && joueur.x < canvas.width) joueur.x += joueur.vitesse;
+
+            // Dessiner le joueur
+            ctx.fillStyle = '#00d2d3';
+            ctx.beginPath();
+            ctx.arc(joueur.x, joueur.y, joueur.taille, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Boucler sur toutes les boules rouges pour les bouger et les afficher
+            for (let i = 0; i < boulesRouges.length; i++) {
+                let b = boulesRouges[i];
+                b.x += b.vx;
+                b.y += b.vy;
+
+                ctx.fillStyle = '#ff4757';
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, b.taille, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Détection de collision (Formule de Pythagore)
+                let distanceX = joueur.x - b.x;
+                let distanceY = joueur.y - b.y;
+                let distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+
+                if (distance < joueur.taille + b.taille) {
+                    jeuActif = false;
+                    clearInterval(horloge);
+					clearInterval(horlogeBoules);
+                    alert("Game Over ! Vous avez survécu " + secondes + " secondes.");
+                    location.reload(); // Recommencer
+                }
+            }
+
+            requestAnimationFrame(bouclerJeu);
+        }
+
+        bouclerJeu();
+    </script>
+</body>
+</html>
